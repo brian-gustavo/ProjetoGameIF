@@ -1,0 +1,1 @@
+console.log("Alô mundo, como Node.js!");
