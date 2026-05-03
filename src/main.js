@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 
+import PlayScene from './scenes/PlayScene';
+
 const config = {
     type: Phaser.AUTO,
     width: 800,
@@ -7,19 +9,12 @@ const config = {
     parent: 'game-container',
     physics: {
         default: 'arcade',
-        arcade: { gravity: { y: 300 } }
+        arcade: { 
+            gravity: { y: 0 },
+            debug: true
+        }
     },
-    scene: {
-        preload: preload,
-        create: create
-    }
+    scene: [PlayScene]
 };
 
 const game = new Phaser.Game(config);
-
-function preload() {
-}
-
-function create() {
-    this.add.text(100, 100, 'ProjetoGameIF rodando!', { fill: '#0f0' });
-}
