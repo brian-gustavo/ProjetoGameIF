@@ -4,18 +4,23 @@ export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
 
-        this.columns = [100, 250, 400, 550, 700]; // Faixas verticais de movimentação do jogador
+        this.columns = [50, 183, 316, 450, 583, 716, 800]; // Faixas verticais de movimentação do jogador
         this.stepDistance = 100; // Descida das linhas após cada pulso
     }
 
     create() {
-        this.currentPos = { col: 2 }; // O personagem começa no centro
+        this.currentPos = { col: 3 }; // O personagem começa no centro
         this.isGameOver = false;
         this.spawnTimer = this.time.now + 2000;
         this.pulseCount = 0; // Contador de pulsos, usado para implementar dificuldade progressiva
 
-        this.isMoving = true;
-        this.time.delayedCall(500, () => { this.isMoving = false; });
+        this.moveCooldown = false;
+        this.moveCooldownTime = 200;
+
+        this.isMoving = false;
+
+        this.inputBlocked = true;
+        this.time.delayedCall(500, () => { this.inputBlocked = false; });
 
         this.supports = this.physics.add.group(); // Fendas na montanha que serão os apoios do personagem
 
@@ -28,13 +33,10 @@ export default class PlayScene extends Phaser.Scene {
         }
 
         // O mestre zen é o protagonista do jogo
-        this.mestreZen = this.add.rectangle(this.columns[this.currentPos.col], 500, 40, 40, 0xffcc00);
+        this.mestreZen = this.add.rectangle(this.columns[this.currentPos.col], 500, 30, 30, 0xffcc00);
         this.physics.add.existing(this.mestreZen);
         
-        this.input.keyboard.on('keydown-LEFT', () => this.tryMove(-1, 0));
-        this.input.keyboard.on('keydown-RIGHT', () => this.tryMove(1, 0));
-        this.input.keyboard.on('keydown-UP', () => this.tryMove(0, -this.stepDistance));
-        this.input.keyboard.on('keydown-DOWN', () => this.tryMove(0, this.stepDistance));
+        this.cursors = this.input.keyboard.createCursorKeys();
 
         this.add.text(10, 10, 'Use as setas para se movimentar', { fill: '#0f0' });
     }
@@ -48,9 +50,50 @@ export default class PlayScene extends Phaser.Scene {
             this.spawnTimer = time + 2000;
         }
 
+        this.handleInput();
         this.checkGameOver();
     }
 
+    // Lê o estado atual das teclas a cada frame e executa o movimento correspondente
+    handleInput() {
+        if (this.isMoving || this.inputBlocked || this.moveCooldown) return;
+ 
+        const left = this.cursors.left.isDown;
+        const right = this.cursors.right.isDown;
+        const up = this.cursors.up.isDown;
+        const down = this.cursors.down.isDown;
+ 
+        // Ignora inputs contraditórios simultâneos
+        if (left && right) return;
+        if (up && down) return;
+ 
+        let dCol = 0;
+        if (left) dCol = -1;
+        if (right) dCol = 1;
+ 
+        let dY = 0;
+        if (up) dY = -this.stepDistance;
+        if (down) dY = this.stepDistance;
+ 
+        if (dCol !== 0 && dY !== 0) {
+            // Movimento diagonal direto (horizontal + vertical simultâneos)
+            this.tryMove(dCol, dY);
+        } else if (dCol !== 0) {
+            // Movimento horizontal: tenta a lateral direta primeiro, depois a diagonal
+            const moved = this.tryMove(dCol, 0);
+            if (!moved) {
+                // Se houver apoio nas duas diagonais, prioriza a de cima
+                const movedUp = this.tryMove(dCol, -this.stepDistance);
+                if (!movedUp) {
+                    this.tryMove(dCol, this.stepDistance);
+                }
+            }
+        } else if (dY !== 0) {
+            // Movimento vertical puro
+            this.tryMove(0, dY);
+        }
+    }
+    
     // Calcula a chance de spawn de apoios extras com base no número de pulsos decorridos
     extraSupportChance() {
         const start = 0.35;    // Chance inicial (35%)
@@ -142,7 +185,7 @@ export default class PlayScene extends Phaser.Scene {
         const targetCol = this.currentPos.col + dCol;
         const targetY = this.mestreZen.y + dY;
         
-        if (targetCol < 0 || targetCol >= this.columns.length) return; // Impede que o personagem saia pelas laterais do campo do jogo
+        if (targetCol < 0 || targetCol >= this.columns.length) return false; // Impede que o personagem saia pelas laterais do campo do jogo
 
         const possibleSupport = this.supports.getChildren().find(s => {
             const colMatch = s.getData('col') === targetCol;
@@ -153,6 +196,7 @@ export default class PlayScene extends Phaser.Scene {
 
         if (possibleSupport) {
             this.isMoving = true;
+            this.moveCooldown = true;
             this.currentPos.col = targetCol;
 
             // Suaviza as transições
@@ -164,7 +208,13 @@ export default class PlayScene extends Phaser.Scene {
                 ease: 'Power1',
                 onComplete: () => { this.isMoving = false; }
             });
+
+            this.time.delayedCall(this.moveCooldownTime, () => { this.moveCooldown = false; });
+ 
+            return true;
         }
+
+        return false;
     }
 
     // O game over ocorre se o personagem passar da borda inferior
