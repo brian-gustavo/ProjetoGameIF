@@ -5,13 +5,14 @@ export default class PlayScene extends Phaser.Scene {
         super('PlayScene');
 
         this.columns = [100, 250, 400, 550, 700]; // Faixas verticais de movimentação do jogador
-        this.stepDistance = 100; // Pras linhas descerem após cada "pulso"
+        this.stepDistance = 100; // Descida das linhas após cada pulso
     }
 
     create() {
         this.currentPos = { col: 2 }; // O personagem começa no centro
         this.isGameOver = false;
         this.spawnTimer = this.time.now + 2000;
+        this.pulseCount = 0; // Contador de pulsos, usado para implementar dificuldade progressiva
 
         this.isMoving = true;
         this.time.delayedCall(500, () => { this.isMoving = false; });
@@ -20,7 +21,7 @@ export default class PlayScene extends Phaser.Scene {
 
         this.supportMap = new Map(); // Registra onde estão os apoios para que o algoritmo de conectividade possa ser aplicado
 
-        for (let y = 500; y >= 100; y -= this.stepDistance) {
+        for (let y = 100; y <= 500; y += this.stepDistance) {
             // Força apoio sob o personagem para que ele não comece no vazio
             const forceCol = (y === 500) ? this.currentPos.col : null;
             this.spawnSupportRow(y, forceCol);
@@ -38,7 +39,7 @@ export default class PlayScene extends Phaser.Scene {
         this.add.text(10, 10, 'Use as setas para se movimentar', { fill: '#0f0' });
     }
 
-    // "Pulso" constante de atualização do campo de jogo
+    // Pulso constante de atualização do campo de jogo
     update(time) {
         if (this.isGameOver) return;
 
@@ -50,33 +51,42 @@ export default class PlayScene extends Phaser.Scene {
         this.checkGameOver();
     }
 
+    // Calcula a chance de spawn de apoios extras com base no número de pulsos decorridos
+    extraSupportChance() {
+        const start = 0.35;    // Chance inicial (35%)
+        const end = 0.05;      // Chance mínima (5%)
+        const rampPulses = 40; // Pulsos até atingir a dificuldade máxima
+
+        const t = Math.min(this.pulseCount / rampPulses, 1);
+        return start + (end - start) * t;
+    }
+
     // Spawn procedural de novos apoios, com algoritmo de conectividade
     spawnSupportRow(yPos, forceCol = null) {
         const newCols = new Set();
 
-        const rowBelow = yPos + this.stepDistance;
-        const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
+        const rowAbove = yPos - this.stepDistance;
+        const colsAbove = this.supportMap.get(rowAbove) ?? new Set();
 
-        colsBelow.forEach(col => {
-            // Para cada apoio na linha abaixo, garante pelo menos um vizinho imediato
-            const candidates = [col - 1, col, col + 1].filter(c => c >= 0 && c < this.columns.length);
-            const chosen = Phaser.Utils.Array.GetRandom(candidates);
-            newCols.add(chosen);
-        });
+        // Garante um caminho completo entre as duas extremidades do campo do jogo
+        if (colsAbove.size > 0) {
+            const anchor = Phaser.Utils.Array.GetRandom(Array.from(colsAbove));
 
-        // Se não havia linha abaixo, garante pelo menos um apoio
-        if (colsBelow.size === 0) {
-            newCols.add(forceCol !== null ? forceCol : Phaser.Math.Between(0, this.columns.length - 1));
+            const candidates = [anchor - 1, anchor, anchor + 1].filter(c => c >= 0 && c < this.columns.length);
+            newCols.add(Phaser.Utils.Array.GetRandom(candidates));
+        } else {
+            newCols.add(Phaser.Math.Between(0, this.columns.length - 1));
         }
 
-        // Força apoio na coluna indicada, se houver necessidade (usado no spawn inicial para garantir apoio sob o personagem)
+        // Força a criação de um apoio, caso seja necessário (usado no spawn inicial)
         if (forceCol !== null) {
             newCols.add(forceCol);
         }
 
-        // Há uma chance de serem adicionados apoios além dos que formam o caminho completo, para gerar variância de gameplay
+        // Cria os apoios extras
+        const chance = this.extraSupportChance();
         this.columns.forEach((_, index) => {
-            if (!newCols.has(index) && Phaser.Math.Between(0, 9) < 4) {
+            if (!newCols.has(index) && Math.random() < chance) {
                 newCols.add(index);
             }
         });
@@ -96,6 +106,7 @@ export default class PlayScene extends Phaser.Scene {
         if (this.isGameOver) return;
 
         this.isMoving = true;
+        this.pulseCount++;
 
         // Quando as linhas descem, os apoios descem junto
         this.supports.getChildren().forEach(support => {
