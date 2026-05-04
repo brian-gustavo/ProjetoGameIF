@@ -4,7 +4,7 @@ export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
 
-        this.columns = [50, 183, 316, 450, 583, 716, 800]; // Faixas verticais de movimentação do jogador
+        this.columns = [75, 183, 291, 400, 508, 616, 725]; // Faixas verticais de movimentação do jogador
         this.stepDistance = 100; // Descida das linhas após cada pulso
     }
 
