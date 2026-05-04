@@ -4,12 +4,12 @@ export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
 
-        this.columns = [200, 400, 600]; // "Faixas" de movimentação do personagem
-        this.stepDistance = 100; // Pras faixas descerem após cada "pulso"
+        this.columns = [100, 250, 400, 550, 700]; // Faixas verticais de movimentação do jogador
+        this.stepDistance = 100; // Pras linhas descerem após cada "pulso"
     }
 
     create() {
-        this.currentPos = { col: 1 }; // O personagem começa no centro
+        this.currentPos = { col: 2 }; // O personagem começa no centro
         this.isGameOver = false;
         this.spawnTimer = this.time.now + 2000;
 
@@ -18,12 +18,15 @@ export default class PlayScene extends Phaser.Scene {
 
         this.supports = this.physics.add.group(); // Fendas na montanha que serão os apoios do personagem
 
-        // Spawn inicial de fendas (pra não acontecer game over instantâneo)
-        for (let y = 100; y <= 500; y += this.stepDistance) {
-            this.spawnSupportRow(y);
+        this.supportMap = new Map(); // Registra onde estão os apoios para que o algoritmo de conectividade possa ser aplicado
+
+        for (let y = 500; y >= 100; y -= this.stepDistance) {
+            // Força apoio sob o personagem para que ele não comece no vazio
+            const forceCol = (y === 500) ? this.currentPos.col : null;
+            this.spawnSupportRow(y, forceCol);
         }
 
-        // Protagonista do jogo
+        // O mestre zen é o protagonista do jogo
         this.mestreZen = this.add.rectangle(this.columns[this.currentPos.col], 500, 40, 40, 0xffcc00);
         this.physics.add.existing(this.mestreZen);
         
@@ -35,7 +38,7 @@ export default class PlayScene extends Phaser.Scene {
         this.add.text(10, 10, 'Use as setas para se movimentar', { fill: '#0f0' });
     }
 
-    // "Pulso" de atualização constante das faixas de movimentação
+    // "Pulso" constante de atualização do campo de jogo
     update(time) {
         if (this.isGameOver) return;
 
@@ -47,55 +50,88 @@ export default class PlayScene extends Phaser.Scene {
         this.checkGameOver();
     }
 
-    // Spawn procedural de novos apoios
-    spawnSupportRow(yPos) {
-        this.columns.forEach((posX, index) => {
-            if (Phaser.Math.Between(0, 10) > 4) {
-                const support = this.add.rectangle(posX, yPos, 80, 20, 0x664422);
-                this.physics.add.existing(support);
-                support.setData('col', index);
-                this.supports.add(support);
+    // Spawn procedural de novos apoios, com algoritmo de conectividade
+    spawnSupportRow(yPos, forceCol = null) {
+        const newCols = new Set();
+
+        const rowBelow = yPos + this.stepDistance;
+        const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
+
+        colsBelow.forEach(col => {
+            // Para cada apoio na linha abaixo, garante pelo menos um vizinho imediato
+            const candidates = [col - 1, col, col + 1].filter(c => c >= 0 && c < this.columns.length);
+            const chosen = Phaser.Utils.Array.GetRandom(candidates);
+            newCols.add(chosen);
+        });
+
+        // Se não havia linha abaixo, garante pelo menos um apoio
+        if (colsBelow.size === 0) {
+            newCols.add(forceCol !== null ? forceCol : Phaser.Math.Between(0, this.columns.length - 1));
+        }
+
+        // Força apoio na coluna indicada, se houver necessidade (usado no spawn inicial para garantir apoio sob o personagem)
+        if (forceCol !== null) {
+            newCols.add(forceCol);
+        }
+
+        // Há uma chance de serem adicionados apoios além dos que formam o caminho completo, para gerar variância de gameplay
+        this.columns.forEach((_, index) => {
+            if (!newCols.has(index) && Phaser.Math.Between(0, 9) < 4) {
+                newCols.add(index);
             }
         });
 
-        // Se uma linha estiver vazia, força o spawn de um apoio
-        if (this.supports.getChildren().filter(s => s.y === yPos).length === 0) {
-            const safeIdx = Phaser.Math.Between(0, 2);
-            const support = this.add.rectangle(this.columns[safeIdx], yPos, 80, 20, 0x664422);
+        this.supportMap.set(yPos, newCols); // Registra o mapa de conectividade da linha antes de criar os visuais
+
+        newCols.forEach(index => {
+            const support = this.add.rectangle(this.columns[index], yPos, 80, 20, 0x664422);
             this.physics.add.existing(support);
-            support.setData('col', safeIdx);
+            support.setData('col', index);
             this.supports.add(support);
-        }
+        });
     }
 
+    // Movimentação da montanha (campo de jogo)
     moveMountainDown() {
         if (this.isGameOver) return;
 
         this.isMoving = true;
 
+        // Quando as linhas descem, os apoios descem junto
         this.supports.getChildren().forEach(support => {
             support.y += this.stepDistance;
         });
 
-        this.mestreZen.y += this.stepDistance; // Move o personagem pra baixo junto com a faixa na qual ele está
+        this.mestreZen.y += this.stepDistance; // O protagonista também desce junto com as linhas
+
+        // Atualiza o mapa de conectividade para evitar que o algoritmo quebre
+        const updatedMap = new Map();
+        this.supportMap.forEach((cols, y) => {
+            updatedMap.set(y + this.stepDistance, cols);
+        });
+        this.supportMap = updatedMap;
+
+        // Remove apoios que sumiram da tela, para garantir otimização
+        this.supports.getChildren().forEach(support => {
+            if (support.y > 700) {
+                this.supportMap.delete(support.y);
+                support.destroy();
+            }
+        });
 
         this.spawnSupportRow(100);
-
-        // Remove apoios que sumiram da tela
-        this.supports.getChildren().forEach(support => {
-            if (support.y > 700) support.destroy();
-        });
 
         this.time.delayedCall(100, () => { this.isMoving = false; });
     }
 
+    // Movimentação do personagem
     tryMove(dCol, dY) {
         if (this.isMoving || this.isGameOver) return;
 
         const targetCol = this.currentPos.col + dCol;
         const targetY = this.mestreZen.y + dY;
         
-        if (targetCol < 0 || targetCol >= this.columns.length) return; // Impede que o personagem saia das colunas laterais
+        if (targetCol < 0 || targetCol >= this.columns.length) return; // Impede que o personagem saia pelas laterais do campo do jogo
 
         const possibleSupport = this.supports.getChildren().find(s => {
             const colMatch = s.getData('col') === targetCol;
