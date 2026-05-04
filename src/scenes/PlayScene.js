@@ -21,7 +21,7 @@ export default class PlayScene extends Phaser.Scene {
 
         this.supportMap = new Map(); // Registra onde estão os apoios para que o algoritmo de conectividade possa ser aplicado
 
-        for (let y = 100; y <= 500; y += this.stepDistance) {
+        for (let y = 500; y >= 100; y -= this.stepDistance) {
             // Força apoio sob o personagem para que ele não comece no vazio
             const forceCol = (y === 500) ? this.currentPos.col : null;
             this.spawnSupportRow(y, forceCol);
@@ -65,14 +65,14 @@ export default class PlayScene extends Phaser.Scene {
     spawnSupportRow(yPos, forceCol = null) {
         const newCols = new Set();
 
-        const rowAbove = yPos - this.stepDistance;
-        const colsAbove = this.supportMap.get(rowAbove) ?? new Set();
+        const rowBelow = yPos + this.stepDistance;
+        const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
 
         // Garante um caminho completo entre as duas extremidades do campo do jogo
-        if (colsAbove.size > 0) {
-            const anchor = Phaser.Utils.Array.GetRandom(Array.from(colsAbove));
-
+        if (colsBelow.size > 0) {
+            const anchor = Phaser.Utils.Array.GetRandom(Array.from(colsBelow));
             const candidates = [anchor - 1, anchor, anchor + 1].filter(c => c >= 0 && c < this.columns.length);
+
             newCols.add(Phaser.Utils.Array.GetRandom(candidates));
         } else {
             newCols.add(Phaser.Math.Between(0, this.columns.length - 1));
