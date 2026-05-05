@@ -57,39 +57,32 @@ export default class PlayScene extends Phaser.Scene {
     // Lê o estado atual das teclas a cada frame e executa o movimento correspondente
     handleInput() {
         if (this.isMoving || this.inputBlocked || this.moveCooldown) return;
- 
+
         const left = this.cursors.left.isDown;
         const right = this.cursors.right.isDown;
         const up = this.cursors.up.isDown;
         const down = this.cursors.down.isDown;
- 
+
         // Ignora inputs contraditórios simultâneos
         if (left && right) return;
         if (up && down) return;
- 
+
         let dCol = 0;
         if (left) dCol = -1;
         if (right) dCol = 1;
- 
+
         let dY = 0;
         if (up) dY = -this.stepDistance;
         if (down) dY = this.stepDistance;
- 
+
         if (dCol !== 0 && dY !== 0) {
-            // Movimento diagonal direto (horizontal + vertical simultâneos)
+            // Movimento diagonal
             this.tryMove(dCol, dY);
         } else if (dCol !== 0) {
-            // Movimento horizontal: tenta a lateral direta primeiro, depois a diagonal
-            const moved = this.tryMove(dCol, 0);
-            if (!moved) {
-                // Se houver apoio nas duas diagonais, prioriza a de cima
-                const movedUp = this.tryMove(dCol, -this.stepDistance);
-                if (!movedUp) {
-                    this.tryMove(dCol, this.stepDistance);
-                }
-            }
+            // Movimento horizontal
+            this.tryMove(dCol, 0);
         } else if (dY !== 0) {
-            // Movimento vertical puro
+            // Movimento vertical
             this.tryMove(0, dY);
         }
     }
