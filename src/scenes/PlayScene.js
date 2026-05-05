@@ -38,13 +38,21 @@ export default class PlayScene extends Phaser.Scene {
         
         this.cursors = this.input.keyboard.createCursorKeys();
 
+        this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
+
         // Primeiro obstáculo (percorre uma coluna, seja subindo ou descendo)
         this.drones = this.physics.add.group({
+            classType: Phaser.GameObjects.Arc,
             maxSize: 3,
-            runChildUpdate: true
+            runChildUpdate: false
         });
 
-        this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
+        for (let i = 0; i < 3; i++) {
+            const drone = this.add.circle(0, -100, 15, 0xffffff);
+            this.physics.add.existing(drone);
+            drone.setActive(false).setVisible(false);
+            this.drones.add(drone);
+        }
 
         this.droneSpawnTimer = this.time.now + 3000;
 
@@ -226,39 +234,6 @@ export default class PlayScene extends Phaser.Scene {
         return false;
     }
 
-    // O game over ocorre se o personagem passar da borda inferior ou encostar em algum inimigo
-    checkGameOver() {
-        if (this.isMoving || this.isGameOver) return; // Evita que o movimento entre fendas seja considerado como uma queda
-
-        const onSupport = this.supports.getChildren().some(s => {
-            const sameCol = Math.abs(s.x - this.mestreZen.x) < 10;
-            const sameHeight = Math.abs(s.y - this.mestreZen.y) < 20;
-            
-            return sameCol && sameHeight;
-        });
-
-        // Verifica se há colisão entre o personagem e os drones
-        const hitByDrone = this.drones.getChildren().some(drone => {
-            if (!drone.active) return false;
-            const dist = Phaser.Math.Distance.Between(
-                this.mestreZen.x, this.mestreZen.y,
-                drone.x, drone.y
-            );
-            return dist < 30;
-        });
-
-        if (this.mestreZen.y > 650 || !onSupport) {
-            this.isGameOver = true;
-            this.physics.pause();
-            this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00', backgroundColor: '#000' }).setOrigin(0.5);
-
-            // Reinicia o jogo 3 segundos após o game over
-            this.time.delayedCall(3000, () => {
-                this.scene.restart();
-            });
-        }
-    }
-
     // Calcula quantos drones podem estar ativos simultaneamente com base nos pulsos decorridos (máximo é 3)
     maxActiveDrones() {
         if (this.pulseCount < 15) return 1; // Primeiro drone adicional aos 15 pulsos
@@ -295,16 +270,9 @@ export default class PlayScene extends Phaser.Scene {
         const startY = goingDown ? -20 : 620;
         const velocityY = goingDown ? this.droneSpeed() : -this.droneSpeed();
 
-        // Reutiliza drones inativos do pool (ou cria um novo, se necessário)
-        let drone = this.drones.get(this.columns[col], startY);
-        if (!drone) return; // Não spawna um novo se o pool estiver cheio
-
-        // Configura o visual do drone
-        if (!drone.geom) {
-            drone = this.add.circle(this.columns[col], startY, 15, 0xffffff);
-            this.physics.add.existing(drone);
-            this.drones.add(drone);
-        }
+        // Reutiliza drones inativos do pool
+        const drone = this.drones.getChildren().find(d => !d.active);
+        if (!drone) return;
 
         drone.setActive(true).setVisible(true);
         drone.setPosition(this.columns[col], startY);
@@ -320,10 +288,54 @@ export default class PlayScene extends Phaser.Scene {
             if (!drone.active) return;
 
             if (drone.y < -50 || drone.y > 650) {
-                this.activeDropeColumns.delete(drone.getData('col'));
+                this.activeDroneColumns.delete(drone.getData('col'));
                 drone.setActive(false).setVisible(false);
                 drone.body.setVelocityY(0);
             }
+        });
+    }
+
+    // O game over ocorre se o personagem passar da borda inferior ou encostar em algum inimigo
+    checkGameOver() {
+        if (this.isGameOver) return;
+
+        // Verifica se há colisão entre o personagem e os drones
+        const hitByDrone = this.drones.getChildren().some(drone => {
+            if (!drone.active) return false;
+            const dist = Phaser.Math.Distance.Between(
+                this.mestreZen.x, this.mestreZen.y,
+                drone.x, drone.y
+            );
+            return dist < 30;
+        });
+
+        if (hitByDrone) {
+            this.triggerGameOver();
+            return;
+        }
+
+        if (this.isMoving) return; // Evita que o movimento entre fendas seja considerado como uma queda
+
+        const onSupport = this.supports.getChildren().some(s => {
+            const sameCol = Math.abs(s.x - this.mestreZen.x) < 10;
+            const sameHeight = Math.abs(s.y - this.mestreZen.y) < 20;
+            
+            return sameCol && sameHeight;
+        });
+
+        if (this.mestreZen.y > 650 || !onSupport) {
+            this.triggerGameOver();
+        }
+    }
+
+    // Se a condição de game over foi ativada, pausa tudo, exibe uma mensagem e reinicia após três segundos
+    triggerGameOver() {
+        this.isGameOver = true;
+        this.physics.pause();
+        this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
+
+        this.time.delayedCall(3000, () => {
+            this.scene.restart();
         });
     }
 }
