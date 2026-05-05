@@ -104,20 +104,20 @@ export default class PlayScene extends Phaser.Scene {
         return start + (end - start) * t;
     }
 
-    // Spawn procedural de novos apoios, com algoritmo de conectividade
+    // Spawn procedural de novos apoios
     spawnSupportRow(yPos, forceCol = null) {
         const newCols = new Set();
 
         const rowBelow = yPos + this.stepDistance;
         const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
 
-        // Garante um caminho completo entre as duas extremidades do campo do jogo
-        if (colsBelow.size > 0) {
-            const anchor = Phaser.Utils.Array.GetRandom(Array.from(colsBelow));
-            const candidates = [anchor - 1, anchor, anchor + 1].filter(c => c >= 0 && c < this.columns.length);
-
+        // Garante que sempre haja ao menos um caminho para cima
+        colsBelow.forEach(col => {
+            const candidates = [col - 1, col, col + 1].filter(c => c >= 0 && c < this.columns.length);
             newCols.add(Phaser.Utils.Array.GetRandom(candidates));
-        } else {
+        });
+ 
+        if (colsBelow.size === 0) {
             newCols.add(Phaser.Math.Between(0, this.columns.length - 1));
         }
 
@@ -126,7 +126,7 @@ export default class PlayScene extends Phaser.Scene {
             newCols.add(forceCol);
         }
 
-        // Cria os apoios extras
+        // Cria apoios extra (isto é, além do mínimo necessário para se mover entre as duas extremidades do campo de jogo)
         const chance = this.extraSupportChance();
         this.columns.forEach((_, index) => {
             if (!newCols.has(index) && Math.random() < chance) {
@@ -180,8 +180,6 @@ export default class PlayScene extends Phaser.Scene {
 
     // Movimentação do personagem
     tryMove(dCol, dY) {
-        if (this.isMoving || this.isGameOver) return;
-
         const targetCol = this.currentPos.col + dCol;
         const targetY = this.mestreZen.y + dY;
         
