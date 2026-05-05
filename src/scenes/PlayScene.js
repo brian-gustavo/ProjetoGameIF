@@ -45,12 +45,13 @@ export default class PlayScene extends Phaser.Scene {
     update(time) {
         if (this.isGameOver) return;
 
+        this.handleInput();
+
         if (time > this.spawnTimer) {
             this.moveMountainDown();
             this.spawnTimer = time + 2000;
         }
 
-        this.handleInput();
         this.checkGameOver();
     }
 
@@ -174,7 +175,9 @@ export default class PlayScene extends Phaser.Scene {
     // Movimentação do personagem
     tryMove(dCol, dY) {
         const targetCol = this.currentPos.col + dCol;
-        const targetY = this.mestreZen.y + dY;
+
+        const snappedY = Math.round(this.mestreZen.y / this.stepDistance) * this.stepDistance;
+        const targetY = snappedY + dY;
         
         if (targetCol < 0 || targetCol >= this.columns.length) return false; // Impede que o personagem saia pelas laterais do campo do jogo
 
