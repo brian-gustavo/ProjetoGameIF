@@ -38,7 +38,7 @@ export default class PlayScene extends Phaser.Scene {
         
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        this.add.text(10, 10, 'Use as setas para se movimentar', { fill: '#0f0' });
+        this.add.text(10, 10, 'Use as setas para se movimentar na horizontal, vertical ou diagonal!', { fill: '#0f0', fontSize: '13px' });
     }
 
     // Pulso constante de atualização do campo de jogo
@@ -104,7 +104,7 @@ export default class PlayScene extends Phaser.Scene {
         const rowBelow = yPos + this.stepDistance;
         const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
 
-        // Garante que sempre haja ao menos um caminho para cima
+        // Garante que sempre haja ao menos um caminho para cima a partir de qualquer apoio (conectividade)
         colsBelow.forEach(col => {
             const candidates = [col - 1, col, col + 1].filter(c => c >= 0 && c < this.columns.length);
             newCols.add(Phaser.Utils.Array.GetRandom(candidates));
@@ -151,7 +151,7 @@ export default class PlayScene extends Phaser.Scene {
 
         this.mestreZen.y += this.stepDistance; // O protagonista também desce junto com as linhas
 
-        // Atualiza o mapa de conectividade para evitar que o algoritmo quebre
+        // Atualiza o mapa de conectividade para evitar que o spawn de apoios quebre
         const updatedMap = new Map();
         this.supportMap.forEach((cols, y) => {
             updatedMap.set(y + this.stepDistance, cols);
@@ -208,7 +208,7 @@ export default class PlayScene extends Phaser.Scene {
         return false;
     }
 
-    // O game over ocorre se o personagem passar da borda inferior
+    // O game over ocorre se o personagem passar da borda inferior (ou se não estiver em um apoio, por algum motivo)
     checkGameOver() {
         if (this.isMoving || this.isGameOver) return; // Evita que o movimento entre fendas seja considerado como uma queda
 
@@ -222,7 +222,7 @@ export default class PlayScene extends Phaser.Scene {
         if (this.mestreZen.y > 650 || !onSupport) {
             this.isGameOver = true;
             this.physics.pause();
-            this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
+            this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00', backgroundColor: '#000' }).setOrigin(0.5);
 
             // Reinicia o jogo 3 segundos após o game over
             this.time.delayedCall(3000, () => {
