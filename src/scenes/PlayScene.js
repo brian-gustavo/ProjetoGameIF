@@ -6,10 +6,11 @@ export default class PlayScene extends Phaser.Scene {
 
         this.columns = [75, 183, 291, 400, 508, 616, 725]; // Faixas verticais de movimentação do jogador
         this.stepDistance = 100; // Descida das linhas após cada pulso
+        this.activeTween = null;
     }
 
     create() {
-        this.currentPos = { col: 3 }; // O personagem começa no centro
+        this.currentPos = { col: 3, row: 4 }; // O personagem começa no centro
         this.isGameOver = false;
         this.spawnTimer = this.time.now + 2000;
         this.pulseCount = 0; // Contador de pulsos, usado para implementar dificuldade progressiva
@@ -165,6 +166,14 @@ export default class PlayScene extends Phaser.Scene {
     moveMountainDown() {
         if (this.isGameOver) return;
 
+        // Se o jogador está no meio de um tween, cancela-o para evitar bugs de posicionamento
+        if (this.activeTween) {
+            this.activeTween.stop();
+            this.activeTween = null;
+            this.mestreZen.x = this.columns[this.currentPos.col];
+            this.mestreZen.y = this.currentPos.row * this.stepDistance;
+        }
+
         this.isMoving = true;
         this.pulseCount++;
 
@@ -173,7 +182,9 @@ export default class PlayScene extends Phaser.Scene {
             support.y += this.stepDistance;
         });
 
-        this.mestreZen.y += this.stepDistance; // O protagonista também desce junto com as linhas
+        // O protagonista também desce junto com as linhas
+        this.currentPos.row++;
+        this.mestreZen.y += this.stepDistance;
 
         // Atualiza o mapa de conectividade para evitar que o spawn de apoios quebre
         const updatedMap = new Map();
@@ -198,9 +209,8 @@ export default class PlayScene extends Phaser.Scene {
     // Movimentação do personagem
     tryMove(dCol, dY) {
         const targetCol = this.currentPos.col + dCol;
-
-        const snappedY = Math.round(this.mestreZen.y / this.stepDistance) * this.stepDistance;
-        const targetY = snappedY + dY;
+        const targetRow = this.currentPos.row + (dY / this.stepDistance);
+        const targetY = targetRow * this.stepDistance;
         
         if (targetCol < 0 || targetCol >= this.columns.length) return false; // Impede que o personagem saia pelas laterais do campo do jogo
 
@@ -212,18 +222,27 @@ export default class PlayScene extends Phaser.Scene {
         });
 
         if (possibleSupport) {
+            if (this.activeTween) {
+                this.activeTween.stop();
+                this.activeTween = null;
+            }
+
             this.isMoving = true;
             this.moveCooldown = true;
             this.currentPos.col = targetCol;
+            this.currentPos.row = targetRow;
 
-            // Suaviza as transições
+            // Tween que suaviza as transições
             this.tweens.add({
                 targets: this.mestreZen,
                 x: possibleSupport.x,
                 y: possibleSupport.y,
                 duration: 100,
                 ease: 'Power1',
-                onComplete: () => { this.isMoving = false; }
+                onComplete: () => {
+                    this.isMoving = false;
+                    this.activeTween = null;
+                }
             });
 
             this.time.delayedCall(this.moveCooldownTime, () => { this.moveCooldown = false; });
