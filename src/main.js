@@ -11,7 +11,7 @@ const config = {
         default: 'arcade',
         arcade: { 
             gravity: { y: 0 },
-            debug: true
+            debug: false // "true" exibe as hitboxes dos objetos, o que é útil para testar colisões
         }
     },
     scene: [PlayScene]
