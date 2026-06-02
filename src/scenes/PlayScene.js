@@ -9,6 +9,10 @@ export default class PlayScene extends Phaser.Scene {
         this.stepDistance = 100; // Distância percorrida pela descida das linhas após cada pulso
     }
 
+    preload() {
+        this.load.image('mestrezen', 'assets/images/mestrezen.png');
+    }
+
     create() {
         this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
 
@@ -35,11 +39,11 @@ export default class PlayScene extends Phaser.Scene {
         }
 
         // O mestre zen é o protagonista do jogo
-        this.mestreZen = this.add.rectangle(
+        this.mestreZen = this.physics.add.sprite(
             this.columns[this.playerCol], this.playerY,
-            30, 30, 0xffcc00
+            'mestrezen'
         );
-        this.physics.add.existing(this.mestreZen);
+        this.mestreZen.setScale(0.5).setDepth(1);
 
         this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
 
