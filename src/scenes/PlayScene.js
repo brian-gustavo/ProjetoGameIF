@@ -1,47 +1,49 @@
 import Phaser from 'phaser';
+import SupportGrid from '../grid/SupportGrid.js';
 
 export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
 
-        this.columns = [75, 183, 291, 400, 508, 616, 725]; // Faixas verticais de movimentação do jogador
-        this.stepDistance = 100; // Descida das linhas após cada pulso
-        this.activeTween = null;
+        this.columns = [75, 183, 291, 400, 508, 616, 725]; // Posição das faixas verticais de movimentação do jogador
+        this.stepDistance = 100; // Distância percorrida pela descida das linhas após cada pulso
     }
 
     create() {
-        this.currentPos = { col: 3, row: 4 }; // O personagem começa no centro
+                this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
+
+        // O personagem começa no centro da tela
+        this.playerCol = 3;
+        this.playerY = 500;
+        
         this.isGameOver = false;
-        this.spawnTimer = this.time.now + 2000;
+
         this.pulseCount = 0; // Contador de pulsos, usado para implementar dificuldade progressiva
+        this.isPulsing = false;
 
         this.moveCooldown = false;
         this.moveCooldownTime = 200;
 
-        this.isMoving = false;
+        this.supportSprites = new Map(); // Os apoios do personagem são fendas na montanha
 
-        this.inputBlocked = true;
-        this.time.delayedCall(500, () => { this.inputBlocked = false; });
+        this.cursors = this.input.keyboard.createCursorKeys();
 
-        this.supports = this.physics.add.group(); // Fendas na montanha que serão os apoios do personagem
-
-        this.supportMap = new Map(); // Registra onde estão os apoios para que o algoritmo de conectividade possa ser aplicado
-
-        // Força apoio sob o personagem para que ele não comece no vazio
+        // Força apoio sob o personagem no início para que ele não comece no vazio
         for (let y = 500; y >= 100; y -= this.stepDistance) {
-            const forceCol = (y === 500) ? this.currentPos.col : null;
-            this.spawnSupportRow(y, forceCol);
+            const forceCol = (y === this.playerY) ? this.playerCol : null;
+            this.spawnRow(y, forceCol);
         }
 
         // O mestre zen é o protagonista do jogo
-        this.mestreZen = this.add.rectangle(this.columns[this.currentPos.col], 500, 30, 30, 0xffcc00);
+        this.mestreZen = this.add.rectangle(
+            this.columns[this.playerCol], this.playerY,
+            30, 30, 0xffcc00
+        );
         this.physics.add.existing(this.mestreZen);
-        
-        this.cursors = this.input.keyboard.createCursorKeys();
 
         this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
 
-        // Primeiro obstáculo (percorre uma coluna, seja subindo ou descendo)
+        // Os drones são o primeiro tipo de inimigo (percorrem uma coluna, seja subindo ou descendo)
         this.drones = this.physics.add.group({
             classType: Phaser.GameObjects.Arc,
             maxSize: 3,
@@ -55,19 +57,26 @@ export default class PlayScene extends Phaser.Scene {
             this.drones.add(drone);
         }
 
+        this.spawnTimer = this.time.now + 2000;
         this.droneSpawnTimer = this.time.now + 3000;
 
-        this.add.text(10, 10, 'Use as setas para se movimentar na horizontal, vertical ou diagonal!', { fill: '#0f0', fontSize: '13px' });
+        // Breve bloqueio de input no início para permitir que tudo seja inicializado corretamente
+        this.inputBlocked = true;
+        this.time.delayedCall(500, () => { this.inputBlocked = false; });
+
+        this.add.text(10, 10, 'Use as setas para se movimentar na horizontal, vertical ou diagonal!', {
+            fill: '#0f0', fontSize: '13px'
+        });
     }
 
-    // Pulso constante de atualização do campo de jogo
+    /** ATUALIZAÇÃO DO CAMPO DE JOGO */
     update(time) {
         if (this.isGameOver) return;
 
         this.handleInput();
 
         if (time > this.spawnTimer) {
-            this.moveMountainDown();
+            this.pulse();
             this.spawnTimer = time + 2000;
         }
 
@@ -82,9 +91,9 @@ export default class PlayScene extends Phaser.Scene {
         this.checkGameOver();
     }
 
-    // Lê o estado atual das teclas a cada frame e executa o movimento correspondente
+    /** LÊ O ESTADO DAS TECLAS A CADA FRAME E EXECUTA O MOVIMENTO CORRESPONDENTE */
     handleInput() {
-        if (this.isMoving || this.inputBlocked || this.moveCooldown) return;
+        if (this.isPulsing || this.inputBlocked || this.moveCooldown) return;
 
         const left = this.cursors.left.isDown;
         const right = this.cursors.right.isDown;
@@ -103,48 +112,64 @@ export default class PlayScene extends Phaser.Scene {
         if (up) dY = -this.stepDistance;
         if (down) dY = this.stepDistance;
 
-        if (dCol !== 0 && dY !== 0) {
-            this.tryMove(dCol, dY); // Movimento diagonal
-        } else if (dCol !== 0) {
-            this.tryMove(dCol, 0); // Movimento horizontal
-        } else if (dY !== 0) {
-            this.tryMove(0, dY); // Movimento vertical
+        if (dCol !== 0 || dY !== 0) {
+            this.tryMove(dCol, dY);
         }
     }
     
-    // Calcula a chance de spawn de apoios extras com base no número de pulsos decorridos
+    /** MOVIMENTAÇÃO DO PERSONAGEM */
+    tryMove(dCol, dY) {
+        const targetCol = this.playerCol + dCol;
+        const targetY = this.playerY + dY;
+        
+        if (targetCol < 0 || targetCol >= this.columns.length) return; // Impede que o personagem saia pelas laterais do campo do jogo
+
+        if (!this.grid.has(targetCol, targetY)) return; // Impede que o jogador se desloque para espaços vazios
+
+        this.playerCol = targetCol;
+        this.playerY = targetY;
+
+        this.moveCooldown = true;
+        this.time.delayedCall(this.moveCooldownTime, () => { this.moveCooldown = false; });
+
+        // Tween/animação interpolada que suaviza as transições
+        this.tweens.add({
+            targets: this.mestreZen,
+            x: this.columns(targetCol),
+            y: targetY,
+            duration: 100,
+            ease: 'Power1'
+        });
+    }
+
+    /** CALCULA A CHANCE DE SPAWN DE APOIOS EXTRAS */
     extraSupportChance() {
-        const start = 0.35;    // Chance inicial (35%)
-        const end = 0.05;      // Chance mínima (5%)
+        const start = 0.35;    // Chance inicial
+        const end = 0.05;      // Chance mínima
         const rampPulses = 40; // Pulsos até atingir a dificuldade máxima
 
         const t = Math.min(this.pulseCount / rampPulses, 1);
         return start + (end - start) * t;
     }
 
-    // Spawn procedural de novos apoios
-    spawnSupportRow(yPos, forceCol = null) {
+    /** SPAWN DE NOVOS APOIOS */
+    spawnRow(y, forceCol = null) {
         const newCols = new Set();
+        const colsBelow = this.grid.getColsAtY(y + this.stepDistance);
 
-        const rowBelow = yPos + this.stepDistance;
-        const colsBelow = this.supportMap.get(rowBelow) ?? new Set();
-
-        // Garante que sempre haja ao menos um caminho para cima a partir de qualquer apoio (conectividade)
+        // Garante ao menos um caminho pra cima a partir de cada apoio (ou seja, assegura conectividade)
         colsBelow.forEach(col => {
             const candidates = [col - 1, col, col + 1].filter(c => c >= 0 && c < this.columns.length);
             newCols.add(Phaser.Utils.Array.GetRandom(candidates));
         });
- 
-        if (colsBelow.size === 0) {
+
+        if (colsBelow.length === 0) {
             newCols.add(Phaser.Math.Between(0, this.columns.length - 1));
         }
 
-        // Força a criação de um apoio, caso seja necessário (usado no spawn inicial)
-        if (forceCol !== null) {
-            newCols.add(forceCol);
-        }
+        if (forceCol !== null) newCols.add(forceCol);
 
-        // Cria apoios extra (isto é, além do mínimo necessário para se mover entre as duas extremidades do campo de jogo)
+        // Spawna apoios extras (isto é, além do necessário para percorrer o caminho entre as duas extremidades da tela)
         const chance = this.extraSupportChance();
         this.columns.forEach((_, index) => {
             if (!newCols.has(index) && Math.random() < chance) {
@@ -152,115 +177,61 @@ export default class PlayScene extends Phaser.Scene {
             }
         });
 
-        this.supportMap.set(yPos, newCols); // Registra o mapa de conectividade da linha antes de criar os visuais
+        // Registra a nova linha de apoios na grade antes de criar os visuais
+        newCols.forEach(col => {
+            this.grid.set(col, y);
 
-        newCols.forEach(index => {
-            const support = this.add.rectangle(this.columns[index], yPos, 80, 20, 0x664422);
-            this.physics.add.existing(support);
-            support.setData('col', index);
-            this.supports.add(support);
+            const sprite = this.add.rectangle(this.columns[col], y, 80, 20, 0x664422);
+            this.physics.add.existing(sprite);
+            this.supportSprites.set(`${col},${y}`, sprite);
         });
     }
 
-    // Movimentação da montanha (campo de jogo)
-    moveMountainDown() {
+    /** PULSO DE "MOVIMENTAÇÃO" DA MONTANHA */
+    pulse() {
         if (this.isGameOver) return;
 
-        // Se o jogador está no meio de um tween, cancela-o para evitar bugs de posicionamento
-        if (this.activeTween) {
-            this.activeTween.stop();
-            this.activeTween = null;
-            this.mestreZen.x = this.columns[this.currentPos.col];
-            this.mestreZen.y = this.currentPos.row * this.stepDistance;
-        }
-
-        this.isMoving = true;
+        this.isPulsing = true; // Utilizado para bloquear input durante o pulso
         this.pulseCount++;
 
-        // Quando as linhas descem, os apoios descem junto
-        this.supports.getChildren().forEach(support => {
-            support.y += this.stepDistance;
+        const removed = this.grid.shiftDown(this.stepDistance, 600);
+
+        // Destrói apoios que saíram da tela
+        removed.forEach(({ col, y }) => {
+            const key = `${col},${y - this.stepDistance}`;
+            const sprite = this.supportSprites.get(key);
+            if (sprite) {
+                sprite.destroy();
+                this.supportSprites.delete(key);
+            }
         });
 
-        // O protagonista também desce junto com as linhas
-        this.currentPos.row++;
+        const updatedSprites = new Map();
+        this.supportSprites.forEach((sprite, key) => {
+            const [col, y] = key.split(',').map(Number);
+            sprite.y += this.stepDistance;
+            updatedSprites.set(`${col},${y + this.stepDistance}`, sprite);
+        });
+        this.supportSprites = updatedSprites;
+
+        // Faz com que o jogador desça junto ao cenário
+        this.playerY += this.stepDistance;
         this.mestreZen.y += this.stepDistance;
 
-        // Atualiza o mapa de conectividade para evitar que o spawn de apoios quebre
-        const updatedMap = new Map();
-        this.supportMap.forEach((cols, y) => {
-            updatedMap.set(y + this.stepDistance, cols);
-        });
-        this.supportMap = updatedMap;
+        this.spawnRow(100); // Spawna nova linha no topo
 
-        // Remove apoios que sumiram da tela, para garantir otimização
-        this.supports.getChildren().forEach(support => {
-            if (support.y > 700) {
-                this.supportMap.delete(support.y);
-                support.destroy();
-            }
-        });
-
-        this.spawnSupportRow(100);
-
-        this.time.delayedCall(100, () => { this.isMoving = false; });
+        this.time.delayedCall(150, () => { if (!this.isGameOver) this.isPulsing = false; }); // Libera input após o pulso terminar
     }
 
-    // Movimentação do personagem
-    tryMove(dCol, dY) {
-        const targetCol = this.currentPos.col + dCol;
-        const targetRow = this.currentPos.row + (dY / this.stepDistance);
-        const targetY = targetRow * this.stepDistance;
-        
-        if (targetCol < 0 || targetCol >= this.columns.length) return false; // Impede que o personagem saia pelas laterais do campo do jogo
-
-        const possibleSupport = this.supports.getChildren().find(s => {
-            const colMatch = s.getData('col') === targetCol;
-            const distY = Math.abs(s.y - targetY);
-
-            return colMatch && distY < 30; 
-        });
-
-        if (possibleSupport) {
-            if (this.activeTween) {
-                this.activeTween.stop();
-                this.activeTween = null;
-            }
-
-            this.isMoving = true;
-            this.moveCooldown = true;
-            this.currentPos.col = targetCol;
-            this.currentPos.row = targetRow;
-
-            // Tween que suaviza as transições
-            this.tweens.add({
-                targets: this.mestreZen,
-                x: possibleSupport.x,
-                y: possibleSupport.y,
-                duration: 100,
-                ease: 'Power1',
-                onComplete: () => {
-                    this.isMoving = false;
-                    this.activeTween = null;
-                }
-            });
-
-            this.time.delayedCall(this.moveCooldownTime, () => { this.moveCooldown = false; });
- 
-            return true;
-        }
-
-        return false;
-    }
-
-    // Calcula quantos drones podem estar ativos simultaneamente com base nos pulsos decorridos (máximo é 3)
+    /** CALCULA QUANTOS DRONES PODEM ESTAR ATIVOS SIMULTANEAMENTE */
     maxActiveDrones() {
-        if (this.pulseCount < 15) return 1; // Primeiro drone adicional aos 15 pulsos
-        if (this.pulseCount < 30) return 2; // Segundo drone adicional aos 30 pulsos
+        // O número de drones aumenta conforme o jogo progride, até chegar no máximo de 3
+        if (this.pulseCount < 15) return 1;
+        if (this.pulseCount < 30) return 2;
         return 3;
     }
 
-    // Calcula a velocidade dos drones com base nos pulsos decorridos
+    /** CALCULA A VELOCIDADE DOS DRONES */
     droneSpeed() {
         const start = 120; // Velocidade inicial (mínima)
         const end = 220; // Velocidade final (máxima)
@@ -270,7 +241,7 @@ export default class PlayScene extends Phaser.Scene {
         return start + (end - start) * t;
     }
 
-    // Spawna novos drones
+    /** SPAWNA NOVOS DRONES */
     spawnDrone() {
         const activeDrones = this.drones.getChildren().filter(d => d.active);
         if (activeDrones.length >= this.maxActiveDrones()) return;
@@ -279,12 +250,10 @@ export default class PlayScene extends Phaser.Scene {
         const availableCols = this.columns
             .map((_, i) => i)
             .filter(i => !this.activeDroneColumns.has(i));
-
         if (availableCols.length === 0) return;
 
-        const col = Phaser.Utils.Array.GetRandom(availableCols);
-
         // Decide aleatoriamente se o drone desce ou sobe
+        const col = Phaser.Utils.Array.GetRandom(availableCols);
         const goingDown = Phaser.Math.Between(0, 1) === 0;
         const startY = goingDown ? -20 : 620;
         const velocityY = goingDown ? this.droneSpeed() : -this.droneSpeed();
@@ -301,11 +270,12 @@ export default class PlayScene extends Phaser.Scene {
         this.activeDroneColumns.add(col);
     }
 
-    // Verifica se algum drone ativo saiu da tela e o devolve ao pool
+    /** VERIFICA SE OS DRONES SAÍRAM DA TELA */
     checkDronesBounds() {
         this.drones.getChildren().forEach(drone => {
             if (!drone.active) return;
 
+            // Devolve o drone ao pool para ser reutilizado caso tenha saído da tela
             if (drone.y < -50 || drone.y > 650) {
                 this.activeDroneColumns.delete(drone.getData('col'));
                 drone.setActive(false).setVisible(false);
@@ -314,47 +284,38 @@ export default class PlayScene extends Phaser.Scene {
         });
     }
 
-    // O game over ocorre se o personagem passar da borda inferior ou encostar em algum inimigo
+    /** CHECA SE HOUVE ALGUM EVENTO QUE CAUSE GAME OVER */
     checkGameOver() {
         if (this.isGameOver) return;
 
-        // Verifica se há colisão entre o personagem e os drones
+        // Colisão com drone
         const hitByDrone = this.drones.getChildren().some(drone => {
             if (!drone.active) return false;
-            const dist = Phaser.Math.Distance.Between(
+            return Phaser.Math.Distance.Between(
                 this.mestreZen.x, this.mestreZen.y,
                 drone.x, drone.y
-            );
-            return dist < 30;
+            ) < 30;
         });
 
-        if (hitByDrone) {
-            this.triggerGameOver();
-            return;
-        }
+        if (hitByDrone) { this.triggerGameOver(); return; }
 
-        if (this.isMoving) return; // Evita que o movimento entre fendas seja considerado como uma queda
+        if (this.mestreZen.y > 650) { this.triggerGameOver(); return; } // Jogador saiu da tela
 
-        const onSupport = this.supports.getChildren().some(s => {
-            const sameCol = Math.abs(s.x - this.mestreZen.x) < 10;
-            const sameHeight = Math.abs(s.y - this.mestreZen.y) < 20;
-            
-            return sameCol && sameHeight;
-        });
-
-        if (this.mestreZen.y > 650 || !onSupport) {
+        // Jogador está em um espaço vazio (game over de segurança, não deve acontecer normalmente)
+        if (!this.grid.has(this.playerCol, this.playerY)) {
             this.triggerGameOver();
         }
     }
 
-    // Se a condição de game over foi ativada, pausa tudo, exibe uma mensagem e reinicia após três segundos
+    /** GAME OVER */
     triggerGameOver() {
+        if (this.isGameOver) return;
+
+        // Tudo é pausado e a mensagem de game over é exibida
         this.isGameOver = true;
         this.physics.pause();
         this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
 
-        this.time.delayedCall(3000, () => {
-            this.scene.restart();
-        });
+        this.time.delayedCall(3000, () => { this.scene.restart(); }); // O jogo reinicia após alguns segundos
     }
 }
