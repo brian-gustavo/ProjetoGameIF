@@ -35,7 +35,7 @@ export default class SupportGrid {
             if (newY <= maxY) {
                 next.add(this._key(col, newY));
             } else {
-                removed.push({ col, y: newY });
+                removed.push({ col, y });
             }
         });
 

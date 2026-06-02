@@ -10,7 +10,7 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     create() {
-                this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
+        this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
 
         // O personagem começa no centro da tela
         this.playerCol = 3;
@@ -123,23 +123,15 @@ export default class PlayScene extends Phaser.Scene {
         const targetY = this.playerY + dY;
         
         if (targetCol < 0 || targetCol >= this.columns.length) return; // Impede que o personagem saia pelas laterais do campo do jogo
-
         if (!this.grid.has(targetCol, targetY)) return; // Impede que o jogador se desloque para espaços vazios
 
         this.playerCol = targetCol;
         this.playerY = targetY;
+        this.mestreZen.x = this.columns[targetCol];
+        this.mestreZen.y = targetY;
 
         this.moveCooldown = true;
         this.time.delayedCall(this.moveCooldownTime, () => { this.moveCooldown = false; });
-
-        // Tween/animação interpolada que suaviza as transições
-        this.tweens.add({
-            targets: this.mestreZen,
-            x: this.columns(targetCol),
-            y: targetY,
-            duration: 100,
-            ease: 'Power1'
-        });
     }
 
     /** CALCULA A CHANCE DE SPAWN DE APOIOS EXTRAS */
@@ -194,11 +186,11 @@ export default class PlayScene extends Phaser.Scene {
         this.isPulsing = true; // Utilizado para bloquear input durante o pulso
         this.pulseCount++;
 
-        const removed = this.grid.shiftDown(this.stepDistance, 600);
+        const removed = this.grid.shiftDown(this.stepDistance, 700);
 
         // Destrói apoios que saíram da tela
         removed.forEach(({ col, y }) => {
-            const key = `${col},${y - this.stepDistance}`;
+            const key = `${col},${y}`;
             const sprite = this.supportSprites.get(key);
             if (sprite) {
                 sprite.destroy();
@@ -214,11 +206,27 @@ export default class PlayScene extends Phaser.Scene {
         });
         this.supportSprites = updatedSprites;
 
-        // Faz com que o jogador desça junto ao cenário
+        // Quando as linhas descem, o mestre zen desce junto
         this.playerY += this.stepDistance;
         this.mestreZen.y += this.stepDistance;
 
+        // Ativa o game over se o jogador saiu da tela
+        if (this.playerY > 600) {
+            this.triggerGameOver();
+            return;
+        }
+
         this.spawnRow(100); // Spawna nova linha no topo
+
+        // Se o personagem está no topo, um apoio sob ele na nova linha será garantido
+        if (this.playerY === 100) {
+            if (!this.grid.has(this.playerCol, 100)) {
+                this.grid.set(this.playerCol, 100);
+                const sprite = this.add.rectangle(this.columns[this.playerCol], 100, 80, 20, 0x664422);
+                this.physics.add.existing(sprite);
+                this.supportSprites.set(`${this.playerCol},100`, sprite);
+            }
+        }
 
         this.time.delayedCall(150, () => { if (!this.isGameOver) this.isPulsing = false; }); // Libera input após o pulso terminar
     }
@@ -299,7 +307,7 @@ export default class PlayScene extends Phaser.Scene {
 
         if (hitByDrone) { this.triggerGameOver(); return; }
 
-        if (this.mestreZen.y > 650) { this.triggerGameOver(); return; } // Jogador saiu da tela
+        if (this.playerY > 600) { this.triggerGameOver(); return; } // Jogador saiu da tela
 
         // Jogador está em um espaço vazio (game over de segurança, não deve acontecer normalmente)
         if (!this.grid.has(this.playerCol, this.playerY)) {
