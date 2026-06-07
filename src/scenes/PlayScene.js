@@ -28,7 +28,11 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     create() {
-        this.add.image(400, 300, 'background').setOrigin(0.5).setDepth(DEPTH.background).setScale(1.7);
+        // TileSprite permite rolar a imagem de fundo para dar maior impressão de movimento vertical
+        this.bg = this.add.tileSprite(0, 0, 800, 600, 'background')
+            .setOrigin(0)
+            .setDepth(DEPTH.background)
+            .setTileScale(800 / 512, 800 / 512);
 
         this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
 
@@ -219,6 +223,8 @@ export default class PlayScene extends Phaser.Scene {
     /** PULSO DE "MOVIMENTAÇÃO" DA MONTANHA */
     pulse() {
         if (this.isGameOver) return;
+
+        this.bg.tilePositionY -= this.stepDistance; // Desloca o fundo a cada pulso
 
         this.isPulsing = true; // Utilizado para bloquear input durante o pulso
         this.pulseCount++;
