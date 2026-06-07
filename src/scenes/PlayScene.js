@@ -18,6 +18,7 @@ export default class PlayScene extends Phaser.Scene {
 
     preload() {
         this.load.image('mestrezen', 'assets/images/mestrezen.png');
+        this.load.image('drone', 'assets/images/drone.png');
     }
 
     create() {
@@ -56,14 +57,17 @@ export default class PlayScene extends Phaser.Scene {
 
         // Os drones são o primeiro tipo de inimigo (percorrem uma coluna, seja subindo ou descendo)
         this.drones = this.physics.add.group({
-            classType: Phaser.GameObjects.Arc,
+            classType: Phaser.GameObjects.Sprite,
             maxSize: 3,
             runChildUpdate: false
         });
 
         for (let i = 0; i < 3; i++) {
-            const drone = this.add.circle(0, -100, 15, 0xffffff);
+            const drone = this.add.sprite(0, -100, 'drone');
+            
+            drone.setScale(0.2);
             drone.setDepth(DEPTH.drones);
+
             this.physics.add.existing(drone);
             drone.setActive(false).setVisible(false);
             this.drones.add(drone);
