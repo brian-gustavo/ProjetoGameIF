@@ -103,6 +103,22 @@ export default class PlayScene extends Phaser.Scene {
             volume: 0.5
         });
         this.soundtrack.play();
+
+        // Pontuação do jogador
+        this.score = 0;
+        this.scoreText = this.add.text(10, 10, 'Score: 0', {
+            fontSize: '20px', fill: '#fff'
+        }).setDepth(DEPTH.player);
+
+        this.time.addEvent({
+            delay: 1000,
+            loop: true,
+            callback: () => {
+                if (this.isGameOver) return;
+                this.score += this.pulseCount; // Quanto mais pulsos, mais rápido a pontuação cresce
+                this.scoreText.setText('Score: ' + this.score);
+            }
+        });
     }
 
     /** ATUALIZAÇÃO DO CAMPO DE JOGO */
@@ -174,7 +190,7 @@ export default class PlayScene extends Phaser.Scene {
     extraSupportChance() {
         const start = 0.5;    // Chance inicial
         const end = 0.05;      // Chance mínima
-        const rampPulses = 80; // Pulsos até atingir a dificuldade máxima
+        const rampPulses = 100; // Pulsos até atingir a dificuldade máxima
 
         const t = Math.min(this.pulseCount / rampPulses, 1);
         return start + (end - start) * t;
@@ -275,9 +291,9 @@ export default class PlayScene extends Phaser.Scene {
 
     /** CALCULA A VELOCIDADE DOS DRONES */
     droneSpeed() {
-        const start = 120; // Velocidade inicial (mínima)
-        const end = 300; // Velocidade final (máxima)
-        const rampPulses = 80; // Pulsos para velocidade máxima
+        const start = 100; // Velocidade inicial (mínima)
+        const end = 500; // Velocidade final (máxima)
+        const rampPulses = 100; // Pulsos para velocidade máxima
 
         const t = Math.min(this.pulseCount / rampPulses, 1);
         return start + (end - start) * t;
@@ -367,10 +383,12 @@ export default class PlayScene extends Phaser.Scene {
 
         this.isGameOver = true;
 
-        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida
+        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida junto com a pontuação final
         this.physics.pause();
         if (this.soundtrack) this.soundtrack.stop();
-        this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
+
+        this.add.text(400, 280, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
+        this.add.text(400, 340, 'Score: ' + this.score, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
 
         // Botão de voltar ao menu
         const btnMenu = this.add.text(400, 380, 'Voltar ao menu', {
