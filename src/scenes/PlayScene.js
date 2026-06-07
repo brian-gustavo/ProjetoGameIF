@@ -9,6 +9,7 @@ const DEPTH = {
     drones:   2,
 };
 
+/** CENA PRINCIPAL DO JOGO */
 export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
@@ -95,10 +96,6 @@ export default class PlayScene extends Phaser.Scene {
         // Breve bloqueio de input no início para permitir que tudo seja inicializado corretamente
         this.inputBlocked = true;
         this.time.delayedCall(500, () => { this.inputBlocked = false; });
-
-        this.add.text(10, 10, 'Use as setas para se movimentar na horizontal, vertical ou diagonal!', {
-            fill: '#0f0', fontSize: '13px'
-        });
 
         // Música de fundo
         this.soundtrack = this.sound.add('soundtrack', {
@@ -368,14 +365,21 @@ export default class PlayScene extends Phaser.Scene {
     triggerGameOver() {
         if (this.isGameOver) return;
 
-        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida
         this.isGameOver = true;
+
+        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida
         this.physics.pause();
-
         if (this.soundtrack) this.soundtrack.stop();
-
         this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
 
-        this.time.delayedCall(3000, () => { this.scene.restart(); }); // O jogo reinicia após alguns segundos
+        // Botão de voltar ao menu
+        const btnMenu = this.add.text(400, 380, 'Voltar ao menu', {
+            fontSize: '28px', fill: '#fff'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        btnMenu.on('pointerdown', () => {
+            this.soundtrack.stop();
+            this.scene.start('MenuScene');
+        });
     }
 }

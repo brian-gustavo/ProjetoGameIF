@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 
+import MenuScene from './scenes/MenuScene';
+import HelpScene from './scenes/HelpScene';
 import PlayScene from './scenes/PlayScene';
 
 const config = {
@@ -14,7 +16,7 @@ const config = {
             debug: false // "true" exibe as hitboxes dos objetos, o que é útil para testar colisões
         }
     },
-    scene: [PlayScene]
+    scene: [MenuScene, HelpScene, PlayScene]
 };
 
 const game = new Phaser.Game(config);
