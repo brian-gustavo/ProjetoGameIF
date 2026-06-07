@@ -64,9 +64,7 @@ export default class PlayScene extends Phaser.Scene {
         this.mestreZen.body.setSize(this.mestreZen.width, this.mestreZen.height);
         this.mestreZen.body.setOffset(0, 0);
 
-        this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
-
-        // Os drones são o primeiro tipo de inimigo (percorrem uma coluna, seja subindo ou descendo)
+        // Os drones são os inimigos (percorrem uma coluna ou uma linha, de uma extremidade a outra)
         this.drones = this.physics.add.group({
             classType: Phaser.GameObjects.Sprite,
             maxSize: 3,
@@ -173,9 +171,9 @@ export default class PlayScene extends Phaser.Scene {
 
     /** CALCULA A CHANCE DE SPAWN DE APOIOS EXTRAS */
     extraSupportChance() {
-        const start = 0.35;    // Chance inicial
+        const start = 0.5;    // Chance inicial
         const end = 0.05;      // Chance mínima
-        const rampPulses = 40; // Pulsos até atingir a dificuldade máxima
+        const rampPulses = 80; // Pulsos até atingir a dificuldade máxima
 
         const t = Math.min(this.pulseCount / rampPulses, 1);
         return start + (end - start) * t;
@@ -272,19 +270,11 @@ export default class PlayScene extends Phaser.Scene {
         this.time.delayedCall(150, () => { if (!this.isGameOver) this.isPulsing = false; }); // Libera input após o pulso terminar
     }
 
-    /** CALCULA QUANTOS DRONES PODEM ESTAR ATIVOS SIMULTANEAMENTE */
-    maxActiveDrones() {
-        // O número de drones aumenta conforme o jogo progride, até chegar no máximo de 3
-        if (this.pulseCount < 15) return 1;
-        if (this.pulseCount < 30) return 2;
-        return 3;
-    }
-
     /** CALCULA A VELOCIDADE DOS DRONES */
     droneSpeed() {
         const start = 120; // Velocidade inicial (mínima)
-        const end = 220; // Velocidade final (máxima)
-        const rampPulses = 40; // Pulsos para velocidade máxima
+        const end = 300; // Velocidade final (máxima)
+        const rampPulses = 80; // Pulsos para velocidade máxima
 
         const t = Math.min(this.pulseCount / rampPulses, 1);
         return start + (end - start) * t;
@@ -293,30 +283,38 @@ export default class PlayScene extends Phaser.Scene {
     /** SPAWNA NOVOS DRONES */
     spawnDrone() {
         const activeDrones = this.drones.getChildren().filter(d => d.active);
-        if (activeDrones.length >= this.maxActiveDrones()) return;
+        if (activeDrones.length >= 1) return;
 
-        // Determina colunas disponíveis (sem drone ativo)
-        const availableCols = this.columns
-            .map((_, i) => i)
-            .filter(i => !this.activeDroneColumns.has(i));
-        if (availableCols.length === 0) return;
+        // Decide aleatoriamente a direção do drone, seja vertical ou horizontal
+        const isHorizontal = Phaser.Math.Between(0, 1) === 0;
+        const speed = this.droneSpeed();
 
-        // Decide aleatoriamente se o drone desce ou sobe
-        const col = Phaser.Utils.Array.GetRandom(availableCols);
-        const goingDown = Phaser.Math.Between(0, 1) === 0;
-        const startY = goingDown ? -20 : 620;
-        const velocityY = goingDown ? this.droneSpeed() : -this.droneSpeed();
-
-        // Reutiliza drones inativos do pool
         const drone = this.drones.getChildren().find(d => !d.active);
         if (!drone) return;
 
-        drone.setActive(true).setVisible(true);
-        drone.setPosition(this.columns[col], startY);
-        drone.setData('col', col);
-        drone.body.setVelocityY(velocityY);
+        let startX, startY, velX, velY;
 
-        this.activeDroneColumns.add(col);
+        if (isHorizontal) {
+            // Drone entra por um dos lados e atravessa a tela horizontalmente
+            const goingRight = Phaser.Math.Between(0, 1) === 0;
+            startX = goingRight ? -20 : 820;
+            const validYs = [100, 200, 300, 400, 500];
+            startY = Phaser.Utils.Array.GetRandom(validYs);
+            velX = goingRight ? speed : -speed;
+            velY = 0;
+        } else {
+            // Drone entra pelo topo ou pela base e percorre uma coluna verticalmente
+            const col = Phaser.Math.Between(0, this.columns.length - 1);
+            const goingDown = Phaser.Math.Between(0, 1) === 0;
+            startX = this.columns[col];
+            startY = goingDown ? -20 : 620;
+            velX = 0;
+            velY = goingDown ? speed : -speed;
+        }
+
+        drone.setActive(true).setVisible(true);
+        drone.setPosition(startX, startY);
+        drone.body.setVelocity(velX, velY);
     }
 
     /** VERIFICA SE OS DRONES SAÍRAM DA TELA */
@@ -325,10 +323,13 @@ export default class PlayScene extends Phaser.Scene {
             if (!drone.active) return;
 
             // Devolve o drone ao pool para ser reutilizado caso tenha saído da tela
-            if (drone.y < -50 || drone.y > 650) {
-                this.activeDroneColumns.delete(drone.getData('col'));
+            const outOfBounds =
+                drone.x < -60 || drone.x > 860 ||
+                drone.y < -60 || drone.y > 660;
+
+            if (outOfBounds) {
                 drone.setActive(false).setVisible(false);
-                drone.body.setVelocityY(0);
+                drone.body.setVelocity(0, 0);
             }
         });
     }
