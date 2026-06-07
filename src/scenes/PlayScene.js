@@ -1,6 +1,13 @@
 import Phaser from 'phaser';
 import SupportGrid from '../grid/SupportGrid.js';
 
+// Profundidade dos diferentes objetos
+const DEPTH = {
+    supports: 0,
+    player:   1,
+    drones:   2,
+};
+
 export default class PlayScene extends Phaser.Scene {
     constructor() {
         super('PlayScene');
@@ -43,7 +50,7 @@ export default class PlayScene extends Phaser.Scene {
             this.columns[this.playerCol], this.playerY,
             'mestrezen'
         );
-        this.mestreZen.setScale(0.5).setDepth(1);
+        this.mestreZen.setScale(0.5).setDepth(DEPTH.player);
 
         this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
 
@@ -56,6 +63,7 @@ export default class PlayScene extends Phaser.Scene {
 
         for (let i = 0; i < 3; i++) {
             const drone = this.add.circle(0, -100, 15, 0xffffff);
+            drone.setDepth(DEPTH.drones);
             this.physics.add.existing(drone);
             drone.setActive(false).setVisible(false);
             this.drones.add(drone);
@@ -178,6 +186,7 @@ export default class PlayScene extends Phaser.Scene {
             this.grid.set(col, y);
 
             const sprite = this.add.rectangle(this.columns[col], y, 80, 20, 0x664422);
+            sprite.setDepth(DEPTH.supports);
             this.physics.add.existing(sprite);
             this.supportSprites.set(`${col},${y}`, sprite);
         });
