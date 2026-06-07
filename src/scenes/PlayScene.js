@@ -21,6 +21,8 @@ export default class PlayScene extends Phaser.Scene {
         this.load.image('mestrezen', 'assets/images/mestrezen.png');
         this.load.image('drone', 'assets/images/drone.png');
         this.load.image('background', 'assets/images/background.jpg');
+
+        this.load.audio('soundtrack', 'assets/music/soundtrack.mp3');
     }
 
     create() {
@@ -87,6 +89,13 @@ export default class PlayScene extends Phaser.Scene {
         this.add.text(10, 10, 'Use as setas para se movimentar na horizontal, vertical ou diagonal!', {
             fill: '#0f0', fontSize: '13px'
         });
+
+        // Música de fundo
+        this.soundtrack = this.sound.add('soundtrack', {
+            loop: true,
+            volume: 0.5
+        });
+        this.soundtrack.play();
     }
 
     /** ATUALIZAÇÃO DO CAMPO DE JOGO */
@@ -340,9 +349,12 @@ export default class PlayScene extends Phaser.Scene {
     triggerGameOver() {
         if (this.isGameOver) return;
 
-        // Tudo é pausado e a mensagem de game over é exibida
+        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida
         this.isGameOver = true;
         this.physics.pause();
+
+        if (this.soundtrack) this.soundtrack.stop();
+
         this.add.text(400, 300, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
 
         this.time.delayedCall(3000, () => { this.scene.restart(); }); // O jogo reinicia após alguns segundos
