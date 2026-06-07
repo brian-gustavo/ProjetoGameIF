@@ -14,7 +14,7 @@ export default class HelpScene extends Phaser.Scene {
         this.add.image(400, 300, 'background').setOrigin(0.5).setScale(800 / 512);
 
         this.add.text(400, 60, 'Ajuda', {
-            fontSize: '48px', fill: '#fff'
+            fontSize: '48px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5);
 
         const conteudo = [
@@ -32,12 +32,12 @@ export default class HelpScene extends Phaser.Scene {
         ].join('\n');
 
         this.add.text(400, 180, conteudo, {
-            fontSize: '20px', fill: '#fff', align: 'center'
+            fontSize: '20px', fill: '#fff', align: 'center', fontFamily: 'pixelta'
         }).setOrigin(0.5, 0);
 
         // Botão para voltar ao menu inicial
         const btnVoltar = this.add.text(400, 540, 'Voltar', {
-            fontSize: '32px', fill: '#fff'
+            fontSize: '32px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         btnVoltar.on('pointerover', () => btnVoltar.setStyle({ fill: '#ff0' }));

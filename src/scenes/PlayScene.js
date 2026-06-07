@@ -114,7 +114,7 @@ export default class PlayScene extends Phaser.Scene {
         // Pontuação do jogador
         this.score = 0;
         this.scoreText = this.add.text(10, 10, 'Score: 0', {
-            fontSize: '20px', fill: '#fff'
+            fontSize: '20px', fill: '#fff', fontFamily: 'pixelta'
         }).setDepth(DEPTH.player);
 
         this.time.addEvent({
@@ -398,12 +398,18 @@ export default class PlayScene extends Phaser.Scene {
 
         // A mensagem de game over é exibida junto com a pontuação final, além de um efeito sonoro
         this.gameoverSound.play();
-        this.add.text(400, 280, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
-        this.add.text(400, 340, 'Score: ' + this.score, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
+
+        this.add.text(400, 280, 'O mestre caiu... GAME OVER!', {
+            fontSize: '40px', fill: '#f00', fontFamily: 'pixelta'
+        }).setOrigin(0.5);
+        
+        this.add.text(400, 340, 'Score: ' + this.score, {
+            fontSize: '28px', fill: '#fff', fontFamily: 'pixelta'
+        }).setOrigin(0.5);
 
         // Botão de voltar ao menu
         const btnMenu = this.add.text(400, 380, 'Voltar ao menu', {
-            fontSize: '28px', fill: '#fff'
+            fontSize: '28px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         btnMenu.on('pointerdown', () => {

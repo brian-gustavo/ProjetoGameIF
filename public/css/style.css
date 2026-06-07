@@ -15,3 +15,8 @@ body {
 #game-container canvas {
     display: block;
 }
+
+@font-face {
+    font-family: 'pixelta';
+    src: url('../assets/fonts/pixelta.ttf') format('truetype');
+}

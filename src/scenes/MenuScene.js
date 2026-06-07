@@ -14,12 +14,12 @@ export default class MenuScene extends Phaser.Scene {
         this.add.image(400, 300, 'background').setOrigin(0.5).setScale(800 / 512);
 
         this.add.text(400, 150, 'Zen Master', {
-            fontSize: '64px', fill: '#fff'
+            fontSize: '64px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5);
 
         // Botão "jogar"
         const btnJogar = this.add.text(400, 320, 'Jogar', {
-            fontSize: '36px', fill: '#fff'
+            fontSize: '36px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         btnJogar.on('pointerover', () => btnJogar.setStyle({ fill: '#ff0' }));
@@ -28,7 +28,7 @@ export default class MenuScene extends Phaser.Scene {
 
         // Botão "ajuda"
         const btnAjuda = this.add.text(400, 400, 'Ajuda', {
-            fontSize: '36px', fill: '#fff'
+            fontSize: '36px', fill: '#fff', fontFamily: 'pixelta'
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         btnAjuda.on('pointerover', () => btnAjuda.setStyle({ fill: '#ff0' }));
