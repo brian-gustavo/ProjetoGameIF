@@ -3,6 +3,7 @@ import SupportGrid from '../grid/SupportGrid.js';
 
 // Profundidade dos diferentes objetos
 const DEPTH = {
+    background: -1,
     supports: 0,
     player:   1,
     drones:   2,
@@ -19,9 +20,12 @@ export default class PlayScene extends Phaser.Scene {
     preload() {
         this.load.image('mestrezen', 'assets/images/mestrezen.png');
         this.load.image('drone', 'assets/images/drone.png');
+        this.load.image('background', 'assets/images/background.jpg');
     }
 
     create() {
+        this.add.image(400, 300, 'background').setOrigin(0.5).setDepth(DEPTH.background).setScale(1.7);
+
         this.grid = new SupportGrid(this.columns.length); // Criação do campo de jogo
 
         // O personagem começa no centro da tela
@@ -64,7 +68,7 @@ export default class PlayScene extends Phaser.Scene {
 
         for (let i = 0; i < 3; i++) {
             const drone = this.add.sprite(0, -100, 'drone');
-            
+
             drone.setScale(0.2);
             drone.setDepth(DEPTH.drones);
 
