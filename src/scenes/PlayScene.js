@@ -61,6 +61,9 @@ export default class PlayScene extends Phaser.Scene {
         );
         this.mestreZen.setScale(0.5).setDepth(DEPTH.player).setOrigin(0.5, 0.4);
 
+        this.mestreZen.body.setSize(this.mestreZen.width, this.mestreZen.height);
+        this.mestreZen.body.setOffset(0, 0);
+
         this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
 
         // Os drones são o primeiro tipo de inimigo (percorrem uma coluna, seja subindo ou descendo)
@@ -77,6 +80,9 @@ export default class PlayScene extends Phaser.Scene {
             drone.setDepth(DEPTH.drones);
 
             this.physics.add.existing(drone);
+            drone.body.setSize(drone.width, drone.height); 
+            drone.body.setOffset(0, 0);
+
             drone.setActive(false).setVisible(false);
             this.drones.add(drone);
         }
@@ -335,7 +341,10 @@ export default class PlayScene extends Phaser.Scene {
         const hitByDrone = this.drones.getChildren().some(drone => {
             if (!drone.active) return false;
 
-            return this.physics.overlap(this.mestreZen, drone);
+            return Phaser.Math.Distance.Between(
+                this.mestreZen.x, this.mestreZen.y,
+                drone.x, drone.y
+            ) < 30;
         });
 
         if (hitByDrone) { this.triggerGameOver(); return; }
