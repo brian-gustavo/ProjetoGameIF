@@ -4,4 +4,4 @@ Este é um jogo desenvolvido com o framework Phaser, como parte da matéria de T
 
 Seu nome é Zen Master, e ele é majoritariamente inspirado pelo jogo de fliperama *Crazy Climber*, lançado em 1980. O jogador controla um monge budista (conhecido justamente como Mestre Zen), que busca subir uma montanha para construir um templo de retiro espiritual em seu cume, onde as pessoas possam se reunir para escapar dos problemas e da tecnologia do mundo moderno. Porém, as big techs não ficaram satisfeitas com isso, e mandaram vários inimigos para tentar derrubá-lo. Seu objetivo é controlar o humilde monge e ajudá-lo a desviar de todos os obstáculos.
 
-Sprite do mestre zen de autoria própria. Imagens da montanha (fundo) e dos drones retiradas da Internet. Música de fundo é "CIRKLON3", do artista Aphex Twin.
+Sprite do mestre zen de autoria própria. O sprite dos apoios, a imagem da montanha (fundo) e a imagem dos drones foram todos obtidos da Internet. Música de fundo é "CIRKLON3", do artista Aphex Twin.

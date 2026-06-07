@@ -18,9 +18,11 @@ export default class PlayScene extends Phaser.Scene {
     }
 
     preload() {
+        this.load.image('background', 'assets/images/background.jpg');
+
         this.load.image('mestrezen', 'assets/images/mestrezen.png');
         this.load.image('drone', 'assets/images/drone.png');
-        this.load.image('background', 'assets/images/background.jpg');
+        this.load.image('support', 'assets/images/support.png');
 
         this.load.audio('soundtrack', 'assets/music/soundtrack.mp3');
     }
@@ -42,7 +44,7 @@ export default class PlayScene extends Phaser.Scene {
         this.moveCooldown = false;
         this.moveCooldownTime = 200;
 
-        this.supportSprites = new Map(); // Os apoios do personagem são fendas na montanha
+        this.supportSprites = new Map(); // Os apoios pelos quais o personagem se movimentará
 
         this.cursors = this.input.keyboard.createCursorKeys();
 
@@ -57,7 +59,7 @@ export default class PlayScene extends Phaser.Scene {
             this.columns[this.playerCol], this.playerY,
             'mestrezen'
         );
-        this.mestreZen.setScale(0.5).setDepth(DEPTH.player);
+        this.mestreZen.setScale(0.5).setDepth(DEPTH.player).setOrigin(0.5, 0.4);
 
         this.activeDroneColumns = new Set(); // Controla em quais colunas já há um drone ativo, para evitar sobreposição
 
@@ -202,8 +204,9 @@ export default class PlayScene extends Phaser.Scene {
         newCols.forEach(col => {
             this.grid.set(col, y);
 
-            const sprite = this.add.rectangle(this.columns[col], y, 80, 20, 0x664422);
+            const sprite = this.add.sprite(this.columns[col], y, 'support');
             sprite.setDepth(DEPTH.supports);
+
             this.physics.add.existing(sprite);
             this.supportSprites.set(`${col},${y}`, sprite);
         });
@@ -252,7 +255,9 @@ export default class PlayScene extends Phaser.Scene {
         if (this.playerY === 100) {
             if (!this.grid.has(this.playerCol, 100)) {
                 this.grid.set(this.playerCol, 100);
-                const sprite = this.add.rectangle(this.columns[this.playerCol], 100, 80, 20, 0x664422);
+
+                const sprite = this.add.sprite(this.columns[this.playerCol], 100, 'support');
+
                 this.physics.add.existing(sprite);
                 this.supportSprites.set(`${this.playerCol},100`, sprite);
             }
@@ -329,10 +334,8 @@ export default class PlayScene extends Phaser.Scene {
         // Colisão com drone
         const hitByDrone = this.drones.getChildren().some(drone => {
             if (!drone.active) return false;
-            return Phaser.Math.Distance.Between(
-                this.mestreZen.x, this.mestreZen.y,
-                drone.x, drone.y
-            ) < 30;
+
+            return this.physics.overlap(this.mestreZen, drone);
         });
 
         if (hitByDrone) { this.triggerGameOver(); return; }
