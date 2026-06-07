@@ -26,6 +26,9 @@ export default class PlayScene extends Phaser.Scene {
         this.load.image('support', 'assets/images/support.png');
 
         this.load.audio('soundtrack', 'assets/music/soundtrack.mp3');
+
+        this.load.audio('drone', 'assets/sounds/drone.mp3');
+        this.load.audio('gameover', 'assets/sounds/gameover.mp3');
     }
 
     create() {
@@ -100,9 +103,13 @@ export default class PlayScene extends Phaser.Scene {
         // Música de fundo
         this.soundtrack = this.sound.add('soundtrack', {
             loop: true,
-            volume: 0.5
+            volume: 0.3
         });
         this.soundtrack.play();
+
+        // Efeitos sonoros
+        this.droneSound = this.sound.add('drone', { volume: 0.1 });
+        this.gameoverSound = this.sound.add('gameover', { volume: 1 });
 
         // Pontuação do jogador
         this.score = 0;
@@ -334,6 +341,8 @@ export default class PlayScene extends Phaser.Scene {
         drone.setActive(true).setVisible(true);
         drone.setPosition(startX, startY);
         drone.body.setVelocity(velX, velY);
+
+        this.droneSound.play();
     }
 
     /** VERIFICA SE OS DRONES SAÍRAM DA TELA */
@@ -383,10 +392,12 @@ export default class PlayScene extends Phaser.Scene {
 
         this.isGameOver = true;
 
-        // Tudo é pausado, inclusive a música, e a mensagem de game over é exibida junto com a pontuação final
+        // Tudo é pausado, inclusive a música de fundo
         this.physics.pause();
         if (this.soundtrack) this.soundtrack.stop();
 
+        // A mensagem de game over é exibida junto com a pontuação final, além de um efeito sonoro
+        this.gameoverSound.play();
         this.add.text(400, 280, 'O mestre caiu... GAME OVER!', { fontSize: '40px', fill: '#f00' }).setOrigin(0.5);
         this.add.text(400, 340, 'Score: ' + this.score, { fontSize: '28px', fill: '#fff' }).setOrigin(0.5);
 
