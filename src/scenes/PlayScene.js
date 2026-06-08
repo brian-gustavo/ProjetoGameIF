@@ -25,6 +25,11 @@ export default class PlayScene extends Phaser.Scene {
         this.load.image('drone', 'assets/images/drone.png');
         this.load.image('support', 'assets/images/support.png');
 
+        this.load.image('sound_on',  'assets/images/sound_on.png');
+        this.load.image('sound_off', 'assets/images/sound_off.png');
+        this.load.image('pause',     'assets/images/pause.png');
+        this.load.image('resume',    'assets/images/resume.png');
+
         this.load.audio('soundtrack', 'assets/music/soundtrack.mp3');
 
         this.load.audio('drone', 'assets/sounds/drone.mp3');
@@ -122,15 +127,46 @@ export default class PlayScene extends Phaser.Scene {
             loop: true,
             callback: () => {
                 if (this.isGameOver) return;
+                if (this.isPaused) return;
+
                 this.score += this.pulseCount; // Quanto mais pulsos, mais rápido a pontuação cresce
                 this.scoreText.setText('Score: ' + this.score);
             }
         });
+
+        this.isMuted  = this.sound.mute;
+        this.isPaused = false;
+
+        const BTN_Y     = 28;
+        const BTN_PAUSE = 760;
+        const BTN_MUTE  = 710;
+        const BTN_SCALE = 0.15;
+
+        // Botão de pausa
+        this.btnPause = this.add.image(BTN_PAUSE, BTN_Y, 'pause')
+            .setScale(BTN_SCALE)
+            .setDepth(DEPTH.player)
+            .setScrollFactor(0)
+            .setInteractive({ useHandCursor: true });
+
+        this.btnPause.on('pointerdown', () => this.togglePause());
+
+        // Botão de mute
+        this.btnMute = this.add.image(BTN_MUTE, BTN_Y, 'sound_on')
+            .setScale(BTN_SCALE)
+            .setDepth(DEPTH.player)
+            .setScrollFactor(0)
+            .setInteractive({ useHandCursor: true });
+
+        this.btnMute.on('pointerdown', () => this.toggleMute());
+
+        this.btnMute.setTexture(this.isMuted ? 'sound_off' : 'sound_on');
     }
 
     /** ATUALIZAÇÃO DO CAMPO DE JOGO */
     update(time) {
         if (this.isGameOver) return;
+        if (this.isPaused) return;
 
         this.handleInput();
 
@@ -396,8 +432,11 @@ export default class PlayScene extends Phaser.Scene {
         this.physics.pause();
         if (this.soundtrack) this.soundtrack.stop();
 
-        // A mensagem de game over é exibida, e um efeito sonoro toca
+        // A mensagem de game over é exibida, os botões somem e um efeito sonoro toca
         this.gameoverSound.play();
+
+        this.btnPause.setVisible(false);
+        this.btnMute.setVisible(false);
 
         this.add.text(400, 280, 'O mestre caiu... GAME OVER!', {
             fontSize: '64px', fill: '#f00', stroke: '#000', strokeThickness: 5, fontFamily: 'pixelta'
@@ -414,5 +453,41 @@ export default class PlayScene extends Phaser.Scene {
             this.soundtrack.stop();
             this.scene.start('MenuScene');
         });
+    }
+
+    /** ALTERNA ENTRE PAUSADO E RODANDO */
+    togglePause() {
+        this.isPaused = !this.isPaused;
+
+        if (this.isPaused) {
+            this.physics.pause();
+            this.soundtrack.pause();
+
+            this.btnPause.setTexture('resume'); // Troca o ícone
+
+            this.pauseText = this.add.text(400, 300, 'PAUSADO', {
+                fontSize: '96px', fill: '#fff', stroke: '#000', strokeThickness: 6, fontFamily: 'pixelta'
+            }).setOrigin(0.5).setDepth(DEPTH.player);
+        } else {
+            this.physics.resume();
+            this.soundtrack.resume();
+
+            this.btnPause.setTexture('pause');
+
+            this.pauseText.destroy();
+        }
+    }
+
+    /** ALTERNA ENTRE MUTADO E DESMUTADO */
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+
+        if (this.isMuted) {
+            this.sound.setMute(true);
+            this.btnMute.setTexture('sound_off');
+        } else {
+            this.sound.setMute(false);
+            this.btnMute.setTexture('sound_on');
+        }
     }
 }
