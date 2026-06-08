@@ -428,6 +428,12 @@ export default class PlayScene extends Phaser.Scene {
 
         this.isGameOver = true;
 
+        // Salva a pontuação se ela for maior que o recorde anterior
+        const prevBest = parseInt(localStorage.getItem('bestScore') || '0', 10);
+        if (this.score > prevBest) {
+            localStorage.setItem('bestScore', this.score);
+        }
+
         // Tudo é pausado, inclusive a música de fundo
         this.physics.pause();
         if (this.soundtrack) this.soundtrack.stop();
@@ -466,7 +472,7 @@ export default class PlayScene extends Phaser.Scene {
             this.btnPause.setTexture('resume'); // Troca o ícone
 
             this.pauseText = this.add.text(400, 300, 'PAUSADO', {
-                fontSize: '96px', fill: '#fff', stroke: '#000', strokeThickness: 6, fontFamily: 'pixelta'
+                fontSize: '96px', fill: '#fff', stroke: '#000', strokeThickness: 5, fontFamily: 'pixelta'
             }).setOrigin(0.5).setDepth(DEPTH.player);
         } else {
             this.physics.resume();

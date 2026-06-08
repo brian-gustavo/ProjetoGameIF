@@ -34,5 +34,12 @@ export default class MenuScene extends Phaser.Scene {
         btnAjuda.on('pointerover', () => btnAjuda.setStyle({ fill: '#ff0' }));
         btnAjuda.on('pointerout',  () => btnAjuda.setStyle({ fill: '#fff' }));
         btnAjuda.on('pointerdown', () => this.scene.start('HelpScene'));
+
+        // Lê o recorde de pontuação salvo (ou 0 se ainda não houver nenhum)
+        const bestScore = parseInt(localStorage.getItem('bestScore') || '0', 10);
+
+        this.add.text(400, 510, `Melhor pontuação: ${bestScore}`, {
+            fontSize: '32px', fill: '#fff', stroke: '#000', strokeThickness: 3, fontFamily: 'pixelta'
+        }).setOrigin(0.5);
     }
 }
